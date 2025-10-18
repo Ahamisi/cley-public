@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Block access to API routes
+Disallow: /api/
+
+# Block access to admin/dashboard routes
+Disallow: /dashboard/
+Disallow: /admin/
+
+# Allow access to public pages
+Allow: /products/
+Allow: /events/
+Allow: /creators/
+Allow: /search/
+
+# Sitemap location
+Sitemap: https://cley.me/sitemap.xml
