@@ -8,11 +8,27 @@ import { ArrowRight, Star, Users, ShoppingBag, Calendar, TrendingUp } from 'luci
 import Link from 'next/link';
 
 export default async function Home() {
-  // Fetch featured content
-  const [featuredProducts, upcomingEvents] = await Promise.all([
-    publicAPI.getFeaturedProducts(),
-    publicAPI.getUpcomingEvents(),
-  ]);
+  // Fetch featured content with error handling
+  let featuredProducts: Product[] = [];
+  let upcomingEvents: Event[] = [];
+  
+  try {
+    const [productsResult, eventsResult] = await Promise.allSettled([
+      publicAPI.getFeaturedProducts(),
+      publicAPI.getUpcomingEvents(),
+    ]);
+    
+    if (productsResult.status === 'fulfilled') {
+      featuredProducts = productsResult.value;
+    }
+    
+    if (eventsResult.status === 'fulfilled') {
+      upcomingEvents = eventsResult.value;
+    }
+  } catch (error) {
+    console.error('Error fetching homepage data:', error);
+    // Continue with empty arrays
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

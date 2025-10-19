@@ -363,7 +363,18 @@ export function CheckoutForm() {
 
     try {
       // Get store ID from the first item (assuming all items are from same store)
-      const storeId = 'ace-merch'; // This should come from the product data
+      // For now, we'll use a mapping as fallback
+      const productStoreMapping: Record<string, string> = {
+        'sample-product': 'aceman',
+        'jermaine-book': 'aceman',
+        // Add more mappings as needed
+      };
+      
+      // Try to get store ID from cart items or use fallback
+      let storeId = 'aceman'; // Default fallback
+      
+      // TODO: In the future, cart items should include store information
+      // or we should have a way to resolve product ID to store ID
       
       const orderData = {
         items: cartItems.map(item => ({

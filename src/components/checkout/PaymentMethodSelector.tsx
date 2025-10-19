@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Check, CreditCard } from 'lucide-react';
@@ -43,11 +43,7 @@ export function PaymentMethodSelector({
   const [recommended, setRecommended] = useState<PaymentMethod | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchPaymentMethods();
-  }, [currency, country, amount]);
-
-  const fetchPaymentMethods = async () => {
+  const fetchPaymentMethods = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -98,7 +94,11 @@ export function PaymentMethodSelector({
     } finally {
       setLoading(false);
     }
-  };
+  }, [currency, country, amount, onSelect]);
+
+  useEffect(() => {
+    fetchPaymentMethods();
+  }, [fetchPaymentMethods]);
 
   const formatMethods = (methods: string[]) => {
     return methods.map(method => 

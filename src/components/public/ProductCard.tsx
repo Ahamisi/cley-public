@@ -77,7 +77,7 @@ export function ProductCard({ product, username, showVendor = true }: ProductCar
           <div className="relative aspect-square overflow-hidden rounded-t-lg">
             <Link href={`/products/${product.slug}`}>
               <Image
-                src={product.images[0] || '/placeholder-product.jpg'}
+                src={product.images?.[0] || '/placeholder-product.svg'}
                 alt={product.title}
                 fill
                 className="object-cover group-hover:scale-110 transition-transform duration-300 cursor-pointer"

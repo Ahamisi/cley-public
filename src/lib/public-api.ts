@@ -52,76 +52,109 @@ class PublicAPI {
   }
 
   async getUserProducts(username: string): Promise<Product[]> {
-    // For now, we'll use a mapping of known usernames to store URLs
-    // TODO: Backend should include storeUrl in user response or provide separate endpoint
-    const userStoreMapping: Record<string, string> = {
-      'aceman1': 'ace-merch',
-      // Add more mappings as needed
-    };
-    
-    const storeUrl = userStoreMapping[username];
-    
-    if (!storeUrl) {
-      console.log(`User ${username} doesn't have a store or store URL not mapped`);
-      return [];
-    }
-    
     try {
-      const response = await this.fetch<any>(`/stores/public/${storeUrl}/products`);
-      // Handle the API response structure: { message, products, pagination }
-      const apiProducts = response.products || response;
+      // First, get the user data to check if they have a store
+      const userResponse = await this.fetch<any>(`/users/public/${username}`);
+      const user = userResponse.user || userResponse;
       
-      if (!Array.isArray(apiProducts)) {
+      // Debug: Log the user response to see what fields are available
+      console.log(`🔍 User API Response for ${username}:`, JSON.stringify(user, null, 2));
+      
+      // Check if user has a store URL in their data
+      let storeUrl = user.storeUrl || user.store?.url || user.store?.handle;
+      
+      // If no store URL in user data, try to get it from a separate endpoint
+      if (!storeUrl) {
+        try {
+          // Try to get user's store information from a separate endpoint
+          const storeResponse = await this.fetch<any>(`/users/public/${username}/store`);
+          storeUrl = storeResponse.storeUrl || storeResponse.url || storeResponse.handle;
+          console.log(`🔍 Store API Response for ${username}:`, JSON.stringify(storeResponse, null, 2));
+        } catch (storeError) {
+          console.log(`🔍 No store endpoint found for ${username}, using fallback mapping`);
+        }
+      }
+      
+      // Fallback to hardcoded mapping for now (temporary until backend provides store info)
+      if (!storeUrl) {
+        const userStoreMapping: Record<string, string> = {
+          'aceman1': 'aceman',
+          // Add more mappings as needed
+        };
+        storeUrl = userStoreMapping[username];
+        console.log(`🔍 Using fallback mapping: ${username} -> ${storeUrl}`);
+      }
+      
+      if (!storeUrl) {
+        console.log(`❌ User ${username} doesn't have a store or store URL not found`);
         return [];
       }
       
-      // Transform API response to match frontend Product type
-      return apiProducts.map((apiProduct: any) => ({
-        id: apiProduct.id,
-        title: apiProduct.title,
-        description: apiProduct.description,
-        slug: apiProduct.handle,
-        price: parseFloat(apiProduct.price) || 0,
-        originalPrice: apiProduct.compareAtPrice ? parseFloat(apiProduct.compareAtPrice) : undefined,
-        currency: 'USD', // Default currency
-        images: apiProduct.images || [],
-        variants: apiProduct.variants?.map((variant: any) => ({
-          id: variant.id,
-          name: variant.title,
-          price: parseFloat(variant.price) || 0,
-          stock: variant.inventoryQuantity || 0,
-          attributes: {
-            color: variant.title,
-            sku: variant.sku
-          }
-        })) || [],
-        category: apiProduct.tags?.[0] || 'General',
-        tags: apiProduct.tags || [],
-        vendor: {
-          id: 'unknown',
-          username: 'unknown',
-          displayName: 'Unknown Vendor',
-          avatar: undefined
-        },
-        rating: 0,
-        reviewCount: 0,
-        badge: apiProduct.isFeatured ? 'Featured' : undefined,
-        isActive: apiProduct.isPublished || false,
-        createdAt: apiProduct.createdAt,
-        updatedAt: apiProduct.createdAt
-      }));
+      console.log(`🔍 Using store URL: ${storeUrl} for user: ${username}`);
+      
+      try {
+        const response = await this.fetch<any>(`/stores/public/${storeUrl}/products`);
+        // Handle the API response structure: { message, products, pagination }
+        const apiProducts = response.products || response;
+        
+        if (!Array.isArray(apiProducts)) {
+          return [];
+        }
+        
+        // Transform API response to match frontend Product type
+        return apiProducts.map((apiProduct: any) => ({
+          id: apiProduct.id,
+          title: apiProduct.title,
+          description: apiProduct.description,
+          slug: apiProduct.handle,
+          price: parseFloat(apiProduct.price) || 0,
+          originalPrice: apiProduct.compareAtPrice ? parseFloat(apiProduct.compareAtPrice) : undefined,
+          currency: 'NGN', // Default currency to Nigerian Naira
+          images: apiProduct.images?.map((img: any) => img.imageUrl) || [],
+          variants: apiProduct.variants?.map((variant: any) => ({
+            id: variant.id,
+            name: variant.title,
+            price: parseFloat(variant.price) || 0,
+            stock: variant.inventoryQuantity || 0,
+            attributes: {
+              color: variant.title,
+              sku: variant.sku
+            }
+          })).filter((variant: any, index: number, self: any[]) => 
+            // Remove duplicates based on variant title
+            index === self.findIndex((v) => v.name === variant.name)
+          ) || [],
+          category: apiProduct.tags?.[0] || 'General',
+          tags: apiProduct.tags || [],
+          vendor: {
+            id: 'unknown',
+            username: 'unknown',
+            displayName: 'Unknown Vendor',
+            avatar: undefined
+          },
+          rating: 0,
+          reviewCount: 0,
+          badge: apiProduct.isFeatured ? 'Featured' : undefined,
+          isActive: apiProduct.isPublished || false,
+          createdAt: apiProduct.createdAt,
+          updatedAt: apiProduct.createdAt
+        }));
+      } catch (error) {
+        // Handle different error cases gracefully
+        if (error instanceof Error && error.message.includes('Store is not active')) {
+          console.log(`Store ${storeUrl} exists but is not active - user may not want to publish their store`);
+          return [];
+        } else if (error instanceof Error && error.message.includes('404')) {
+          console.log(`Store ${storeUrl} not found`);
+          return [];
+        } else {
+          console.log(`Error fetching products for store ${storeUrl}:`, error);
+          return [];
+        }
+      }
     } catch (error) {
-      // Handle different error cases gracefully
-      if (error instanceof Error && error.message.includes('Store is not active')) {
-        console.log(`Store ${storeUrl} exists but is not active - user may not want to publish their store`);
-        return [];
-      } else if (error instanceof Error && error.message.includes('404')) {
-        console.log(`Store ${storeUrl} not found`);
-        return [];
-      } else {
-        console.log(`Error fetching products for store ${storeUrl}:`, error);
-        return [];
-      }
+      console.log(`Error fetching user data for ${username}:`, error);
+      return [];
     }
   }
 
@@ -181,8 +214,8 @@ class PublicAPI {
       slug: apiProduct.handle,
       price: parseFloat(apiProduct.price) || 0,
       originalPrice: apiProduct.compareAtPrice ? parseFloat(apiProduct.compareAtPrice) : undefined,
-      currency: 'USD', // Default currency
-      images: apiProduct.images || [],
+          currency: 'NGN', // Default currency to Nigerian Naira
+      images: apiProduct.images?.map((img: any) => img.imageUrl) || [],
       variants: [], // Search API doesn't include variants
       category: 'General', // Would need to be provided by backend
       tags: [],
@@ -218,8 +251,8 @@ class PublicAPI {
       slug: apiProduct.handle,
       price: parseFloat(apiProduct.price) || 0,
       originalPrice: apiProduct.compareAtPrice ? parseFloat(apiProduct.compareAtPrice) : undefined,
-      currency: 'USD', // Default currency
-      images: apiProduct.images || [],
+      currency: 'NGN', // Default currency to Nigerian Naira
+      images: apiProduct.images?.map((img: any) => img.imageUrl) || [],
       variants: apiProduct.variants?.map((variant: any) => ({
         id: variant.id,
         name: variant.title,
@@ -229,7 +262,10 @@ class PublicAPI {
           color: variant.option1Value || variant.title,
           sku: variant.sku
         }
-      })) || [],
+      })).filter((variant: any, index: number, self: any[]) => 
+        // Remove duplicates based on variant title
+        index === self.findIndex((v) => v.name === variant.name)
+      ) || [],
       category: apiProduct.tags?.[0] || 'General',
       tags: apiProduct.tags || [],
       vendor: {
@@ -350,13 +386,13 @@ class PublicAPI {
       });
     } else if (entityType === 'socialLink') {
       await this.fetch(`/social-links/${entityId}/click`, {
-        method: 'POST',
-        body: JSON.stringify({
+      method: 'POST',
+      body: JSON.stringify({
           userAgent: navigator.userAgent,
           ipAddress: '', // Will be handled by backend
           referrer: document.referrer,
-        }),
-      });
+      }),
+    });
     }
   }
 
@@ -364,13 +400,13 @@ class PublicAPI {
     if (entityType === 'product') {
       // Extract storeUrl and productHandle from entityId if needed
       await this.fetch(`/stores/public/${entityId}/view`, {
-        method: 'POST',
-        body: JSON.stringify({
+      method: 'POST',
+      body: JSON.stringify({
           userAgent: navigator.userAgent,
           ipAddress: '', // Will be handled by backend
           referrer: document.referrer,
-        }),
-      });
+      }),
+    });
     }
   }
 }

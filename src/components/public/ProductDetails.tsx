@@ -21,7 +21,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
   const [isBuyingNow, setIsBuyingNow] = useState(false);
 
   const formatPrice = (price: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-NG', {
       style: 'currency',
       currency: currency,
     }).format(price);

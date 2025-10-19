@@ -25,7 +25,8 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     // For now, we'll use a mapping to find the store URL for the product
     // TODO: Backend should provide a way to get store URL from product slug
     const productStoreMapping: Record<string, string> = {
-      'sample-product': 'ace-merch',
+      'sample-product': 'aceman',
+      'jermaine-book': 'aceman',
       // Add more mappings as needed
     };
     
@@ -110,13 +111,18 @@ function generateStructuredData(product: Product) {
 
 export default async function ProductPage({ params }: ProductPageProps) {
   try {
-    // Use the same mapping logic as generateMetadata
+    // Try to get store URL from product data first
+    // For now, we'll use a mapping as fallback
     const productStoreMapping: Record<string, string> = {
-      'sample-product': 'ace-merch',
+      'sample-product': 'aceman',
+      'jermaine-book': 'aceman',
       // Add more mappings as needed
     };
     
-    const storeUrl = productStoreMapping[params.slug];
+    let storeUrl = productStoreMapping[params.slug];
+    
+    // TODO: In the future, we should be able to get store URL from product data
+    // or have a separate endpoint to resolve product slug to store URL
     if (!storeUrl) {
       notFound();
     }
